@@ -33,8 +33,19 @@ class Server:
 
     def handle_client(self, client_socket, address, user):
         while True:
-            #try:
+            try:
                 data = self.dict_of_sockets[user].recv(1024)
+                if data.decode() == "<get_users>":
+                    self.dict_of_sockets[user].send(str(self.dict_of_users).encode())
+                    break
+                if data.decode() == "<disconnect>":
+                    print("Client disconnected: {}".format(address))
+                    self.dict_of_sockets[user].close()
+                    del self.dict_of_sockets[user]
+                    self.client_count -= 1
+                    break
+                if data.decode == "<get_list_file>":
+                    pass
                 print("data" + str(data.decode()))
                 dest = str(data.decode()).split(":")[4]
                 data = str(data.decode()).split(":")[0] + ":" + str(data.decode()).split(":")[1] + ":" + str(data.decode()).split(":")[2] + ":" + str(data.decode()).split(":")[3]
@@ -45,12 +56,12 @@ class Server:
                             self.dict_of_sockets[client].send(data.encode())
                 else:
                     raise Exception("No data received")
-            # except Exception as e:
-            #     print("Client disconnected: {}".format(address))
-            #     self.dict_of_sockets[user].close()
-            #     del self.dict_of_sockets[user]
-            #     self.client_count -= 1
-            #     break
+            except Exception as e:
+                print("Client disconnected: {}".format(address))
+                self.dict_of_sockets[user].close()
+                del self.dict_of_sockets[user]
+                self.client_count -= 1
+                break
 
 
     def get_host(self):

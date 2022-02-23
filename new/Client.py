@@ -39,16 +39,19 @@ class Client:
     def send_message(self):
         while True:
             # input message we want to send to the server
-            dest = input()
-            message = input()
-            # a way to exit the program
-            if message.lower() == 'q':
-                break
-            # add the datetime, name & the color of the sender
-            date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            message = f"{self.client_color}[{date_now}] {self.username}{saprate}{message}{Fore.RESET}{saprate}{dest}"
-            self.sock.send(message.encode())
-            print("message sent")
+            command = input()
+            if command == "<get_users>" or command == "<disconnect>" or command == "<get_list_file>":
+                self.sock.send(command.encode())
+            else:
+                message = input()
+                # a way to exit the program
+                if message.lower() == 'q':
+                    break
+                # add the datetime, name & the color of the sender
+                date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                message = f"{self.client_color}[{date_now}] {self.username}{saprate}{message}{Fore.RESET}{saprate}{command}"
+                self.sock.send(message.encode())
+                print("message sent")
 
     def listen_for_messages(self):
         while True:
