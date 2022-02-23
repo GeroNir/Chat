@@ -25,6 +25,7 @@ class Server:
             print(data.decode())
             self.dict_of_sockets[data.decode()] = client_socket
             self.dict_of_users[data.decode()] = address
+            print(self.dict_of_users)
             self.client_count += 1
             print("Client connected: {}".format(address))
             client_thread = threading.Thread(target=self.handle_client, args=(client_socket, address, data.decode()))
@@ -32,20 +33,24 @@ class Server:
 
     def handle_client(self, client_socket, address, user):
         while True:
-            try:
-                data = client_socket.recv(1024)
+            #try:
+                data = self.dict_of_sockets[user].recv(1024)
+                print("data" + str(data.decode()))
+                dest = str(data.decode()).split(":")[4]
+                data = str(data.decode()).split(":")[0] + ":" + str(data.decode()).split(":")[1] + ":" + str(data.decode()).split(":")[2] + ":" + str(data.decode()).split(":")[3]
+                print(data)
                 if data:
                     for client in self.dict_of_sockets.keys():
-                        if client == user:
-                            self.dict_of_sockets[client].send(data)
+                        if client == dest:
+                            self.dict_of_sockets[client].send(data.encode())
                 else:
                     raise Exception("No data received")
-            except Exception as e:
-                print("Client disconnected: {}".format(address))
-                self.dict_of_sockets[user].close()
-                del self.dict_of_sockets[user]
-                self.client_count -= 1
-                break
+            # except Exception as e:
+            #     print("Client disconnected: {}".format(address))
+            #     self.dict_of_sockets[user].close()
+            #     del self.dict_of_sockets[user]
+            #     self.client_count -= 1
+            #     break
 
 
     def get_host(self):
