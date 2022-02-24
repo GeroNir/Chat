@@ -36,17 +36,18 @@ class Server:
             self.client_count += 1
             print("Client connected: {}".format(address))
             client_socket.send("<connected>".encode())
-            client_thread = threading.Thread(target=self.handle_client, args=(client_socket, address, data.decode()))
+            client_thread = threading.Thread(target=self.handle_client, args=(address, data.decode()))
             client_thread.start()
             udp_thread = threading.Thread(target=self.handle_udp, args=(client_socket,))
             udp_thread.start()
 
     def handle_udp(self, client_socket):
-        d, addr = self.udpSocket.recvfrom(1024)
-        d = d.decode()
-        if d[:10] == "<download>":
-            print("downloading file")
-            self.send_file(client_socket, addr, d[11:-1])
+        while True:
+            d, addr = self.udpSocket.recvfrom(1024)
+            d = d.decode()
+            if d[:10] == "<download>":
+                print("downloading file")
+                self.send_file(client_socket, addr, d[11:-1])
 
     def handle_client(self, address, user):
         while True:
@@ -99,26 +100,34 @@ class Server:
 
     def send_file(self, socket, addr, filename):
         socket.send("Sending file...".encode())
-        print("addr", addr)
-        data, len = self.split(filename)
+        # print("addr", addr)
+        data, size = self.split(filename)
         count = 0
-        self.udpSocket.sendto(str(len).encode(), addr)
-        while count < len and count < 4:
+        self.udpSocket.sendto(str(size).encode(), addr)
+        expectedData = []
+        receivedData = []
+        for i in range(size):
+            expectedData.append(i)
+        while count < size and count < 4:
             self.udpSocket.sendto(data[count], addr)
             time.sleep(0.1)
             count += 1
-        while count < len:
+        while len(expectedData) > 0:
             ack = self.udpSocket.recvfrom(16)[0].decode()
             if ack:
+                print("ack", ack)
                 if ack[:3] == "ACK":
-                    #TODO: check num of ACK
-                    self.udpSocket.sendto(data[count], addr)
-                    count += 1
+                    print("ack in", ack[3])
+                    if int(ack[3:] == str(expectedData[0])):
+                        expectedData.remove(int(ack[3:]))
+                        if count < size:
+                            self.udpSocket.sendto(data[count], addr)
+                            count += 1
+                    else:
+                        self.udpSocket.sendto(str(expectedData[0]).encode(), addr)
                 if ack[:4] == "NACK":
-                    ack[4] = int(ack[4])
-                    self.udpSocket.sendto(data[ack[4]], addr)
-                    count += ack[4]
-
+                    self.udpSocket.sendto(data[int(ack[4])], addr)
+            print("expectedData", expectedData)
     def check_username(self):
         available = True
         while available:

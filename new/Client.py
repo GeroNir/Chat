@@ -29,7 +29,7 @@ class Client:
         print(f"[*] Connecting to {HOST}:{PORT}...")
         self.sock.connect((HOST, PORT))
         self.client_color = random.choice(colors)
-        self.username = input("Enter your username: ")
+        self.username = input("Please enter your username..")
         self.sock.send(self.username.encode())
         self.udpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         t = threading.Thread(target=self.listen_for_messages)
@@ -81,9 +81,9 @@ class Client:
             expectedData.append(i)
         print("expectedData: ", expectedData)
         while count < len:
-            data = self.udpSocket.recvfrom(32)
+            data = self.udpSocket.recvfrom(32)[0]
             if data:
-                data = data[0].decode()
+                data = data.decode()
                 print("data" + data)
                 data = data.split("~")
                 seq = data[0]
@@ -108,14 +108,12 @@ class Client:
             file.write(d)
             file.close()
 
-
     def calculate_checksum(self, data):
         checksum = 0
         for byte in data:
             checksum += byte
         checksum = checksum % 256
         return checksum
-
 
 if __name__ == '__main__':
     c1 = Client()
