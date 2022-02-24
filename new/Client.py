@@ -24,12 +24,14 @@ saprate = ":"
 class Client:
 
     def __init__(self):
+
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print(f"[*] Connecting to {HOST}:{PORT}...")
         self.sock.connect((HOST, PORT))
         self.client_color = random.choice(colors)
         self.username = input("Enter your username: ")
         self.sock.send(self.username.encode())
+        self.udpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         t = threading.Thread(target=self.listen_for_messages)
         t.start()
 
@@ -40,31 +42,35 @@ class Client:
         while True:
             # input message we want to send to the server
             command = input()
-            if command == "<get_users>" or command == "<disconnect>" or command == "<get_list_file>" or command[
-                                                                                                        :10] == "<download>":
+            if command == "<get_users>" or command == "<disconnect>" or command == "<get_list_file>":
                 self.sock.send(command.encode())
                 if command == "<disconnect>":
                     exit()
             else:
-                message = input()
-                date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                message = f"{self.client_color}[{date_now}] {self.username}{saprate}{message}{Fore.RESET}{saprate}{command}"
-                self.sock.send(message.encode())
+                if command[:10] == "<download>":
+                    print("[*] Sending file...")
+                    self.udpSocket.sendto(command.encode(), (HOST, PORT))
+                else:
+                    message = input()
+                    date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    message = f"{self.client_color}[{date_now}] {self.username}{saprate}{message}{Fore.RESET}{saprate}{command}"
+                    self.sock.send(message.encode())
 
     def listen_for_messages(self):
         while True:
             message = self.sock.recv(1024).decode()
             if message == "Sending file...":
-                t = threading.Thread(target=self.get_file())
-                t.daemon = True
-                t.start()
-                time.sleep(1)
+                #t = threading.Thread(target=self.get_file())
+                #t.daemon = True
+                #t.start()
+                #time.sleep(1)
+                self.get_file()
             else:
                 if message:
                     print(message)
 
     def get_file(self):
-        len = int(self.sock.recv(1024).decode())
+        len = int(self.udpSocket.recvfrom(1024)[0])
         expectedData = []
         receivedData = []
         count = 0
@@ -74,25 +80,25 @@ class Client:
             expectedData.append(i)
         print("expectedData: ", expectedData)
         while count < len:
-            data = self.sock.recv(32)
+            data = self.udpSocket.recvfrom(32)
             if data:
-                data = data.decode()
+                data = data[0].decode()
                 print("data" + data)
                 data = data.split("~")
                 seq = data[0]
                 seq = int(seq)
                 checksum = int(data[1])
                 info = data[2]
-                check = calculate_checksum(info.encode())
+                check = self.calculate_checksum(info.encode())
                 #TODO: use deffrent thread to sending and receiving
                 if check == checksum and seq in expectedData and seq not in receivedData and seq == count:
                     receivedData.append(info)
                     expectedData.remove(seq)
-                    self.sock.send(("ACK" + str(count)).encode())
+                    self.udpSocket.sendto(("ACK" + str(count)).encode(), (HOST, PORT))
                     count += 1
                     time.sleep(0.1)
                 else:
-                    self.sock.send(("NACK" + str(count)).encode())
+                    self.udpSocket.sendto(("NACK" + str(count)).encode(), addr)
                     time.sleep(0.1)
 
         print("end")
@@ -102,12 +108,12 @@ class Client:
             file.close()
 
 
-def calculate_checksum(data):
-    checksum = 0
-    for byte in data:
-        checksum += byte
-    checksum = checksum % 256
-    return checksum
+    def calculate_checksum(self, data):
+        checksum = 0
+        for byte in data:
+            checksum += byte
+        checksum = checksum % 256
+        return checksum
 
 
 if __name__ == '__main__':
