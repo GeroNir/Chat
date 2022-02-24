@@ -33,6 +33,7 @@ class Client:
         self.sock.send(self.username.encode())
         self.udpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         t = threading.Thread(target=self.listen_for_messages)
+        t.daemon = True
         t.start()
 
         # TODO: duplicate username check
@@ -98,7 +99,7 @@ class Client:
                     count += 1
                     time.sleep(0.1)
                 else:
-                    self.udpSocket.sendto(("NACK" + str(count)).encode(), addr)
+                    self.udpSocket.sendto(("NACK" + str(count)).encode(), (HOST, PORT))
                     time.sleep(0.1)
 
         print("end")
