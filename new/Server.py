@@ -50,12 +50,12 @@ class Server:
                     del self.dict_of_sockets[user]
                     self.client_count -= 1
                     break
-                print("data" + data.decode())
+                #print("data" + data.decode())
                 tmp = data.decode()
                 tmp = tmp[:10]
-                print("tmp" + tmp)
+                #print("tmp" + tmp)
                 if tmp == "<download>":
-                    print("check" + data.decode()[11:-1])
+                    #print("check" + data.decode()[11:-1])
                     self.send_file(self.dict_of_sockets[user], data.decode()[11:-1])
                 # print("data" + str(data.decode()))
                 dest = str(data.decode()).split(":")[4]
@@ -100,15 +100,15 @@ class Server:
             socket.send(data[count])
             time.sleep(0.1)
             count += 1
-
         while count < len:
             print("entered2")
             ack = socket.recv(16)
             if ack:
                 ack = ack.decode()
                 print("ack " + ack)
+                print("ack " + str(ack[:3]))
                 if ack[:3] == "ACK":
-                    ack[3] = int(ack[3])
+                    #TODO: check num of ACK
                     socket.send(data[count])
                     count += 1
                 if ack[:4] == "NACK":

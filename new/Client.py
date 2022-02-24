@@ -53,10 +53,12 @@ class Client:
 
     def listen_for_messages(self):
         while True:
-            message = self.sock.recv(16).decode()
+            message = self.sock.recv(1024).decode()
             if message == "Sending file...":
-                self.get_file()
-                print("File received")
+                t = threading.Thread(target=self.get_file())
+                t.daemon = True
+                t.start()
+                time.sleep(1)
             else:
                 if message:
                     print(message)
@@ -71,7 +73,7 @@ class Client:
         for i in range(len):
             expectedData.append(i)
         print("expectedData: ", expectedData)
-        while count < len - 1:
+        while count < len:
             data = self.sock.recv(32)
             if data:
                 data = data.decode()
@@ -85,9 +87,9 @@ class Client:
                 #TODO: use deffrent thread to sending and receiving
                 if check == checksum and seq in expectedData and seq not in receivedData and seq == count:
                     receivedData.append(info)
-                    count += 1
                     expectedData.remove(seq)
                     self.sock.send(("ACK" + str(count)).encode())
+                    count += 1
                     time.sleep(0.1)
                 else:
                     self.sock.send(("NACK" + str(count)).encode())
