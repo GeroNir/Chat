@@ -8,6 +8,11 @@ HOST = "127.0.0.1"
 PORT = 5002
 
 
+#TODO: flow control
+#TODO: timeout
+#TODO: retransmission by resending all the window
+
+
 class Server:
     def __init__(self, host, port):
 
@@ -104,30 +109,36 @@ class Server:
         data, size = self.split(filename)
         count = 0
         self.udpSocket.sendto(str(size).encode(), addr)
+
         expectedData = []
-        receivedData = []
         for i in range(size):
             expectedData.append(i)
-        while count < size and count < 4:
+        while count < size and count < 3:
             self.udpSocket.sendto(data[count], addr)
             time.sleep(0.1)
+            print("sent packet #", count)
             count += 1
+        #TODO: saparte thread for receiving acks
         while len(expectedData) > 0:
-            ack = self.udpSocket.recvfrom(16)[0].decode()
+            ack = self.udpSocket.recvfrom(32)[0].decode()
             if ack:
-                print("ack", ack)
+                print(ack)
                 if ack[:3] == "ACK":
-                    print("ack in", ack[3])
+                    # print("ack in", ack[3])
                     if int(ack[3:] == str(expectedData[0])):
                         expectedData.remove(int(ack[3:]))
                         if count < size:
                             self.udpSocket.sendto(data[count], addr)
+                            print("sent packet #", count)
                             count += 1
                     else:
-                        self.udpSocket.sendto(str(expectedData[0]).encode(), addr)
+                        self.udpSocket.sendto(data[expectedData[0]], addr)
+                        expectedData.remove(int(ack[3:]))
+                        print("Sepical sent", str(data[expectedData[0]]))
                 if ack[:4] == "NACK":
-                    self.udpSocket.sendto(data[int(ack[4])], addr)
-            print("expectedData", expectedData)
+                    self.udpSocket.sendto(data[int(ack[4:])], addr)
+                #print(expectedData)
+        print("file sent")
     def check_username(self):
         available = True
         while available:
@@ -155,14 +166,14 @@ class Server:
 
 
     def split(self, path):
-        buffer = 16
+        buffer = 45000
         list = []
         f = open(path, "rb")
         l = f.read(buffer)
         i = 0
         while l:
             l = str(i).encode() + "~".encode() + str(self.calculate_checksum(l)).encode() + "~".encode() + l
-            print("l", l)
+            #print("l", l)
             list.append(l)
             l = f.read(buffer)
             i += 1

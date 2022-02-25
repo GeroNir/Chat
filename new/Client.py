@@ -37,7 +37,6 @@ class Client:
         t.start()
 
         # TODO: duplicate username check
-        # TODO: add a way to exit the chat
 
     def send_message(self):
         while True:
@@ -59,7 +58,7 @@ class Client:
 
     def listen_for_messages(self):
         while True:
-            message = self.sock.recv(1024).decode()
+            message = self.sock.recv(50000).decode()
             if message == "Sending file...":
                 #t = threading.Thread(target=self.get_file())
                 #t.daemon = True
@@ -71,37 +70,38 @@ class Client:
                     print(message)
 
     def get_file(self):
-        len = int(self.udpSocket.recvfrom(1024)[0])
+        size = int(self.udpSocket.recvfrom(1024)[0])
         expectedData = []
         receivedData = []
         count = 0
         print("Receiving file...")
-        print("len: ", len)
-        for i in range(len):
+        #print("len: ", size)
+        for i in range(size):
             expectedData.append(i)
-        print("expectedData: ", expectedData)
-        while count < len:
-            data = self.udpSocket.recvfrom(32)[0]
+        #print("expectedData: ", expectedData)
+        while len(expectedData) > 0:
+            data = self.udpSocket.recvfrom(50000)[0]
             if data:
                 data = data.decode()
                 print("data" + data)
                 data = data.split("~")
                 seq = data[0]
+                #seq = seq[2:]
                 seq = int(seq)
                 checksum = int(data[1])
                 info = data[2]
                 check = self.calculate_checksum(info.encode())
                 #TODO: use deffrent thread to sending and receiving
-                if check == checksum and seq in expectedData and seq not in receivedData and seq == count:
+                if seq in expectedData:
+                    print("seq #", seq)
                     receivedData.append(info)
                     expectedData.remove(seq)
-                    self.udpSocket.sendto(("ACK" + str(count)).encode(), (HOST, PORT))
+                    self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
                     count += 1
                     time.sleep(0.1)
                 else:
                     self.udpSocket.sendto(("NACK" + str(count)).encode(), (HOST, PORT))
                     time.sleep(0.1)
-
         print("end")
         for d in receivedData:
             file = open("received_file.txt", "a")
