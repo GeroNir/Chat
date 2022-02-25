@@ -6,11 +6,12 @@ import Packet
 
 HOST = "127.0.0.1"
 PORT = 5002
+BUFFER_SIZE = 50000
 
 
 #TODO: flow control
 #TODO: timeout
-#TODO: retransmission by resending all the window
+#TODO: <proceed>
 
 
 class Server:
@@ -42,8 +43,10 @@ class Server:
             print("Client connected: {}".format(address))
             client_socket.send("<connected>".encode())
             client_thread = threading.Thread(target=self.handle_client, args=(address, data.decode()))
+            client_thread.daemon = True
             client_thread.start()
             udp_thread = threading.Thread(target=self.handle_udp, args=(client_socket,))
+            udp_thread.daemon = True
             udp_thread.start()
 
     def handle_udp(self, client_socket):
@@ -105,17 +108,17 @@ class Server:
 
     def send_file(self, socket, addr, filename):
         socket.send("Sending file...".encode())
+        window_size = 4
         # print("addr", addr)
         data, size = self.split(filename)
         count = 0
         self.udpSocket.sendto(str(size).encode(), addr)
-
         expectedData = []
         for i in range(size):
             expectedData.append(i)
-        while count < size and count < 3:
+        while count < size and count < window_size:
             self.udpSocket.sendto(data[count], addr)
-            time.sleep(0.1)
+            #time.sleep(0.1)
             print("sent packet #", count)
             count += 1
         #TODO: saparte thread for receiving acks
@@ -132,13 +135,17 @@ class Server:
                             print("sent packet #", count)
                             count += 1
                     else:
-                        self.udpSocket.sendto(data[expectedData[0]], addr)
-                        expectedData.remove(int(ack[3:]))
-                        print("Sepical sent", str(data[expectedData[0]]))
+                        if len(expectedData) > 1:
+                            self.udpSocket.sendto(data[expectedData[0]], addr)
+                            self.udpSocket.sendto(data[expectedData[1]], addr)
+                            expectedData.remove(int(ack[3:]))
+                            #print("Sepical sent", str(data[expectedData[0]]))
+                            print("Sepical sent #", int(expectedData[0]))
                 if ack[:4] == "NACK":
                     self.udpSocket.sendto(data[int(ack[4:])], addr)
                 #print(expectedData)
         print("file sent")
+
     def check_username(self):
         available = True
         while available:
@@ -164,9 +171,8 @@ class Server:
         checksum = checksum % 256
         return checksum
 
-
     def split(self, path):
-        buffer = 45000
+        buffer = BUFFER_SIZE - 100
         list = []
         f = open(path, "rb")
         l = f.read(buffer)

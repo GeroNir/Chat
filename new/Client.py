@@ -29,7 +29,7 @@ class Client:
         print(f"[*] Connecting to {HOST}:{PORT}...")
         self.sock.connect((HOST, PORT))
         self.client_color = random.choice(colors)
-        self.username = input("Please enter your username..")
+        self.username = input("Please enter your username: ")
         self.sock.send(self.username.encode())
         self.udpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         t = threading.Thread(target=self.listen_for_messages)
@@ -58,16 +58,21 @@ class Client:
 
     def listen_for_messages(self):
         while True:
-            message = self.sock.recv(50000).decode()
-            if message == "Sending file...":
-                #t = threading.Thread(target=self.get_file())
-                #t.daemon = True
-                #t.start()
-                #time.sleep(1)
-                self.get_file()
-            else:
-                if message:
-                    print(message)
+            # try:
+                message = self.sock.recv(50000).decode()
+                if message == "Sending file...":
+                    #t = threading.Thread(target=self.get_file())
+                    #t.daemon = True
+                    #t.start()
+                    #time.sleep(1)
+                    self.get_file()
+                else:
+                    if message:
+                        print(message)
+            # except Exception as e:
+            #     print(e)
+            #     break
+
 
     def get_file(self):
         size = int(self.udpSocket.recvfrom(1024)[0])
@@ -75,33 +80,35 @@ class Client:
         receivedData = []
         count = 0
         print("Receiving file...")
-        #print("len: ", size)
+        print("len: ", size)
         for i in range(size):
             expectedData.append(i)
         #print("expectedData: ", expectedData)
         while len(expectedData) > 0:
             data = self.udpSocket.recvfrom(50000)[0]
             if data:
-                data = data.decode()
-                print("data" + data)
-                data = data.split("~")
+                #print("data", data)
+                #data = data.decode()
+                #print("data" + data)
+                data = str(data).split("~")
                 seq = data[0]
-                #seq = seq[2:]
+                seq = seq[2:]
                 seq = int(seq)
                 checksum = int(data[1])
                 info = data[2]
+                info = info[:-1]
                 check = self.calculate_checksum(info.encode())
                 #TODO: use deffrent thread to sending and receiving
                 if seq in expectedData:
                     print("seq #", seq)
-                    receivedData.append(info)
+                    receivedData.insert(seq, info)
                     expectedData.remove(seq)
                     self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
                     count += 1
-                    time.sleep(0.1)
+                    #time.sleep(0.1)
                 else:
                     self.udpSocket.sendto(("NACK" + str(count)).encode(), (HOST, PORT))
-                    time.sleep(0.1)
+                    #time.sleep(0.1)
         print("end")
         for d in receivedData:
             file = open("received_file.txt", "a")
@@ -118,3 +125,5 @@ class Client:
 if __name__ == '__main__':
     c1 = Client()
     c1.send_message()
+
+#<download><leave.png>
