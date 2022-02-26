@@ -39,6 +39,7 @@ class Client:
         # TODO: duplicate username check
 
     def send_message(self):
+
         while True:
             # input message we want to send to the server
             command = input()
@@ -46,6 +47,9 @@ class Client:
                 self.sock.send(command.encode())
                 if command == "<disconnect>":
                     exit()
+            if command == "<proceed>":
+                print("[*] proceeding....")
+                self.udpSocket.sendto(command.encode(), (HOST, PORT))
             else:
                 if command[:10] == "<download>":
                     print("[*] Sending file...")
@@ -105,6 +109,20 @@ class Client:
                     expectedData.remove(seq)
                     self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
                     count += 1
+                    if seq == (size / 2):
+                        print("50%, waiting for proceed...")
+                        b = True
+                        while b:
+                            cmd = self.sock.recv(1024).decode()
+                            if cmd == "<proceeding>":
+                                print("[*] Proceeding...")
+                                b = False
+                            else:
+                                if seq in expectedData:
+                                    print("seq #", seq)
+                                    receivedData.insert(seq, info)
+                                    expectedData.remove(seq)
+                                    self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
                     #time.sleep(0.1)
                 else:
                     self.udpSocket.sendto(("NACK" + str(count)).encode(), (HOST, PORT))

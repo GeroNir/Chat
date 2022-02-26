@@ -9,10 +9,8 @@ PORT = 5002
 BUFFER_SIZE = 50000
 
 
-#TODO: flow control
-#TODO: timeout
-#TODO: <proceed>
-
+# TODO: flow control
+# TODO: timeout
 
 class Server:
     def __init__(self, host, port):
@@ -79,7 +77,7 @@ class Server:
                 if data:
                     dest = str(data.decode()).split(":")[4]
                     data = str(data.decode()).split(":")[0] + ":" + str(data.decode()).split(":")[1] + ":" + \
-                               str(data.decode()).split(":")[2] + ":" + str(data.decode()).split(":")[3]
+                           str(data.decode()).split(":")[2] + ":" + str(data.decode()).split(":")[3]
                     if dest == "all":
                         for key in self.dict_of_sockets.keys():
                             if key != user:
@@ -108,7 +106,7 @@ class Server:
 
     def send_file(self, socket, addr, filename):
         socket.send("Sending file...".encode())
-        window_size = 4
+        window_size = 6
         # print("addr", addr)
         data, size = self.split(filename)
         count = 0
@@ -118,16 +116,25 @@ class Server:
             expectedData.append(i)
         while count < size and count < window_size:
             self.udpSocket.sendto(data[count], addr)
-            #time.sleep(0.1)
+            # time.sleep(0.1)
             print("sent packet #", count)
             count += 1
-        #TODO: saparte thread for receiving acks
+        # TODO: saparte thread for receiving acks
         while len(expectedData) > 0:
             ack = self.udpSocket.recvfrom(32)[0].decode()
             if ack:
                 print(ack)
                 if ack[:3] == "ACK":
                     # print("ack in", ack[3])
+                    if int(ack[3:]) == size / 2:
+                        print("half done, wait for proceeding")
+                        b = True
+                        while b:
+                            proc = self.udpSocket.recvfrom(32)[0].decode()
+                            if proc == "<proceed>":
+                                print("proceeding")
+                                socket.send("<proceeding>".encode())
+                                b = False
                     if int(ack[3:] == str(expectedData[0])):
                         expectedData.remove(int(ack[3:]))
                         if count < size:
@@ -139,11 +146,11 @@ class Server:
                             self.udpSocket.sendto(data[expectedData[0]], addr)
                             self.udpSocket.sendto(data[expectedData[1]], addr)
                             expectedData.remove(int(ack[3:]))
-                            #print("Sepical sent", str(data[expectedData[0]]))
+                            # print("Sepical sent", str(data[expectedData[0]]))
                             print("Sepical sent #", int(expectedData[0]))
                 if ack[:4] == "NACK":
                     self.udpSocket.sendto(data[int(ack[4:])], addr)
-                #print(expectedData)
+                # print(expectedData)
         print("file sent")
 
     def check_username(self):
@@ -163,7 +170,7 @@ class Server:
     def __repr__(self):
         return "Server(host={}, port={})".format(self.host, self.port)
 
-# <download><text.txt>
+    # <download><text.txt>
     def calculate_checksum(self, data):
         checksum = 0
         for byte in data:
@@ -179,7 +186,7 @@ class Server:
         i = 0
         while l:
             l = str(i).encode() + "~".encode() + str(self.calculate_checksum(l)).encode() + "~".encode() + l
-            #print("l", l)
+            # print("l", l)
             list.append(l)
             l = f.read(buffer)
             i += 1
