@@ -2,8 +2,6 @@ import threading
 import socket
 import time
 
-import Packet
-
 HOST = "127.0.0.1"
 PORT = 5002
 BUFFER_SIZE = 50000
@@ -11,6 +9,11 @@ BUFFER_SIZE = 50000
 
 # TODO: flow control
 # TODO: timeout
+# TODO: unit tests
+# TODO: duplicate users
+# TODO: get list of files
+# TODO: sending files and messages
+
 
 class Server:
     def __init__(self, host, port):
@@ -36,24 +39,42 @@ class Server:
             print(data.decode())
             self.dict_of_sockets[data.decode()] = client_socket
             self.dict_of_users[data.decode()] = address
-            print(self.dict_of_users)
+            print(self.dict_of_sockets)
             self.client_count += 1
-            print("Client connected: {}".format(address))
-            client_socket.send("<connected>".encode())
-            client_thread = threading.Thread(target=self.handle_client, args=(address, data.decode()))
-            client_thread.daemon = True
-            client_thread.start()
-            udp_thread = threading.Thread(target=self.handle_udp, args=(client_socket,))
-            udp_thread.daemon = True
-            udp_thread.start()
+            if self.client_count > 5:
+                print("Max number of clients reached")
+                client_socket.send("Max number of clients reached".encode())
+                client_socket.close()
+            else:
+                print("Client connected: {}".format(address))
+                client_socket.send("<connected>".encode())
+                client_thread = threading.Thread(target=self.handle_client, args=(address, data.decode()))
+                client_thread.daemon = True
+                client_thread.start()
+                udp_thread = threading.Thread(target=self.handle_udp, args=(client_socket, data.decode()))
+                udp_thread.daemon = True
+                udp_thread.start()
 
-    def handle_udp(self, client_socket):
+
+    def handle_udp(self, client_socket, username):
         while True:
             d, addr = self.udpSocket.recvfrom(1024)
             d = d.decode()
+            d = d.split("~")
+            if len(d) == 2:
+                print("d", d)
+                username = d[1]
+                print("username", username)
+            d = d[0]
             if d[:10] == "<download>":
                 print("downloading file")
-                self.send_file(client_socket, addr, d[11:-1])
+                # send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1]))
+                # send_thread.daemon = True
+                # send_thread.start()
+                self.send_file(client_socket, addr, d[11:-1], username)
+
+            time.sleep(2)
+
 
     def handle_client(self, address, user):
         while True:
@@ -104,9 +125,11 @@ class Server:
     def get_dict_of_users(self):
         return self.dict_of_users
 
-    def send_file(self, socket, addr, filename):
-        socket.send("Sending file...".encode())
-        window_size = 6
+    def send_file(self, socket, addr, filename, user):
+        print("user: {}", user)
+        print("socket: {}".format(socket))
+        self.dict_of_sockets[user].send("Sending file...".encode())
+        window_size = 4
         # print("addr", addr)
         data, size = self.split(filename)
         count = 0
@@ -119,9 +142,13 @@ class Server:
             # time.sleep(0.1)
             print("sent packet #", count)
             count += 1
+        flag = True
         # TODO: saparte thread for receiving acks
-        while len(expectedData) > 0:
+        while len(expectedData) > 0 and flag:
             ack = self.udpSocket.recvfrom(32)[0].decode()
+            if ack:
+                if ack == "end":
+                    flag = False
             if ack:
                 print(ack)
                 if ack[:3] == "ACK":
@@ -133,7 +160,11 @@ class Server:
                             proc = self.udpSocket.recvfrom(32)[0].decode()
                             if proc == "<proceed>":
                                 print("proceeding")
-                                socket.send("<proceeding>".encode())
+                                self.dict_of_sockets[user].send("<proceeding>".encode())
+                                for i in range(window_size):
+                                    self.udpSocket.sendto(data[count], addr)
+                                    count += 1
+                                    print("sent packet #", count)
                                 b = False
                     if int(ack[3:] == str(expectedData[0])):
                         expectedData.remove(int(ack[3:]))
@@ -151,7 +182,7 @@ class Server:
                 if ack[:4] == "NACK":
                     self.udpSocket.sendto(data[int(ack[4:])], addr)
                 # print(expectedData)
-        print("file sent")
+        print(filename + " sent")
 
     def check_username(self):
         available = True

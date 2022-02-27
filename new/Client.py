@@ -5,10 +5,9 @@ from colorama import Fore, init, Back
 import random
 import threading
 
-# from Packet import Packet
-
 HOST = "127.0.0.1"
 PORT = 5002
+BUFFER_SIZE = 50000
 init()
 
 # set the available colors
@@ -53,7 +52,8 @@ class Client:
             else:
                 if command[:10] == "<download>":
                     print("[*] Sending file...")
-                    self.udpSocket.sendto(command.encode(), (HOST, PORT))
+                    cmd = command + "~" + self.username
+                    self.udpSocket.sendto(cmd.encode(), (HOST, PORT))
                 else:
                     message = input()
                     date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -63,75 +63,85 @@ class Client:
     def listen_for_messages(self):
         while True:
             # try:
-                message = self.sock.recv(50000).decode()
-                if message == "Sending file...":
-                    #t = threading.Thread(target=self.get_file())
-                    #t.daemon = True
-                    #t.start()
-                    #time.sleep(1)
-                    self.get_file()
-                else:
-                    if message:
-                        print(message)
-            # except Exception as e:
-            #     print(e)
-            #     break
-
+            message = self.sock.recv(50000).decode()
+            if message == "Sending file...":
+                # t = threading.Thread(target=self.get_file())
+                # t.daemon = True
+                # t.start()
+                # time.sleep(1)
+                self.get_file()
+            else:
+                if message:
+                    print(message)
+        # except Exception as e:
+        #     print(e)
+        #     break
 
     def get_file(self):
-        size = int(self.udpSocket.recvfrom(1024)[0])
-        expectedData = []
-        receivedData = []
-        count = 0
-        print("Receiving file...")
-        print("len: ", size)
-        for i in range(size):
-            expectedData.append(i)
-        #print("expectedData: ", expectedData)
-        while len(expectedData) > 0:
-            data = self.udpSocket.recvfrom(50000)[0]
-            if data:
-                #print("data", data)
-                #data = data.decode()
-                #print("data" + data)
-                data = str(data).split("~")
-                seq = data[0]
-                seq = seq[2:]
-                seq = int(seq)
-                checksum = int(data[1])
-                info = data[2]
-                info = info[:-1]
-                check = self.calculate_checksum(info.encode())
-                #TODO: use deffrent thread to sending and receiving
-                if seq in expectedData:
-                    print("seq #", seq)
-                    receivedData.insert(seq, info)
-                    expectedData.remove(seq)
-                    self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
-                    count += 1
-                    if seq == (size / 2):
-                        print("50%, waiting for proceed...")
-                        b = True
-                        while b:
-                            cmd = self.sock.recv(1024).decode()
-                            if cmd == "<proceeding>":
-                                print("[*] Proceeding...")
-                                b = False
-                            else:
-                                if seq in expectedData:
-                                    print("seq #", seq)
-                                    receivedData.insert(seq, info)
-                                    expectedData.remove(seq)
-                                    self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
-                    #time.sleep(0.1)
-                else:
-                    self.udpSocket.sendto(("NACK" + str(count)).encode(), (HOST, PORT))
-                    #time.sleep(0.1)
-        print("end")
-        for d in receivedData:
-            file = open("received_file.txt", "a")
-            file.write(d)
-            file.close()
+        try:
+            b = True
+            while b:
+                size = self.udpSocket.recvfrom(BUFFER_SIZE)[0]
+                if len(size.decode().split("~")) == 1:
+                    b = False
+            print(f"[*] File size: {size}")
+            size = int(size)
+            expectedData = []
+            receivedData = []
+            count = 0
+            print("Receiving file...")
+            print("len: ", size)
+            for i in range(size):
+                expectedData.append(i)
+            # print("expectedData: ", expectedData)
+            while len(expectedData) > 0:
+                data = self.udpSocket.recvfrom(50000)[0]
+                if data:
+                    # print("data", data)
+                    # data = data.decode()
+                    # print("data" + data)
+                    data = str(data).split("~")
+                    seq = data[0]
+                    seq = seq[2:]
+                    seq = int(seq)
+                    checksum = int(data[1])
+                    info = data[2]
+                    info = info[:-1]
+                    check = self.calculate_checksum(info.encode())
+                    # TODO: use deffrent thread to sending and receiving
+                    if seq in expectedData:
+                        print("seq #", seq)
+                        receivedData.insert(seq, info)
+                        expectedData.remove(seq)
+                        self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
+                        count += 1
+                        if seq == (size / 2):
+                            print("50%, waiting for proceed...")
+                            b = True
+                            while b:
+                                cmd = self.sock.recv(1024).decode()
+                                if cmd == "<proceeding>":
+                                    print("[*] Proceeding...")
+                                    b = False
+                                else:
+                                    if seq in expectedData:
+                                        print("seq #", seq)
+                                        receivedData.insert(seq, info)
+                                        expectedData.remove(seq)
+                                        self.udpSocket.sendto(("ACK" + str(seq)).encode(), (HOST, PORT))
+                        # time.sleep(0.1)
+                    else:
+
+                        self.udpSocket.sendto(("NACK" + str(count)).encode(), (HOST, PORT))
+                        # time.sleep(0.1)
+            print("end")
+            self.udpSocket.sendto(("end").encode(), (HOST, PORT))
+            for d in receivedData:
+                file = open("received_file.txt", "a")
+                file.write(d)
+                file.close()
+        except Exception as e:
+            print(e)
 
     def calculate_checksum(self, data):
         checksum = 0
@@ -140,8 +150,9 @@ class Client:
         checksum = checksum % 256
         return checksum
 
+
 if __name__ == '__main__':
     c1 = Client()
     c1.send_message()
 
-#<download><leave.png>
+# <download><leave.png>
