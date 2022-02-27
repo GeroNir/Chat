@@ -30,6 +30,13 @@ class Client:
         self.client_color = random.choice(colors)
         self.username = input("Please enter your username: ")
         self.sock.send(self.username.encode())
+        recv = self.sock.recv(BUFFER_SIZE).decode()
+        #print(recv)
+        while recv == "username already taken":
+            print("username already taken")
+            self.username = input("Please choose another username: ")
+            self.sock.send(self.username.encode())
+            recv = self.sock.recv(BUFFER_SIZE).decode()
         self.udpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         t = threading.Thread(target=self.listen_for_messages)
         t.daemon = True

@@ -10,11 +10,10 @@ BUFFER_SIZE = 50000
 
 
 # TODO: flow control
-# TODO: timeout
 # TODO: unit tests
 # TODO: duplicate users
 
-class Server(BaseException):
+class Server:
     def __init__(self, host, port):
 
         self.host = host
@@ -36,6 +35,13 @@ class Server(BaseException):
             client_socket, address = self.server_socket.accept()
             data = client_socket.recv(1024)
             print(data.decode())
+            while data.decode() in self.dict_of_sockets.keys():
+                print("duplicate user")
+                client_socket.send("username already taken".encode())
+                data = client_socket.recv(1024)
+                print("hey", data.decode())
+            print("new user")
+            client_socket.send("username accepted".encode())
             self.dict_of_sockets[data.decode()] = client_socket
             self.dict_of_users[data.decode()] = address
             print(self.dict_of_sockets)
@@ -61,18 +67,22 @@ class Server(BaseException):
                 d, addr = self.udpSocket.recvfrom(1024)
                 d = d.decode()
                 print("d", d)
-                d = d.split("~")
-                if len(d) == 2:
-                    print("d", d)
-                    username = d[1]
-                    print("username", username)
-                d = d[0]
-                if d[:10] == "<download>":
-                    print("downloading file")
-                    # send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1]))
-                    # send_thread.daemon = True
-                    # send_thread.start()
-                    self.send_file(client_socket, addr, d[11:-1], username)
+                if d == "<proceed>":
+                    d = None
+                    print("None")
+                else:
+                    d = d.split("~")
+                    if len(d) == 2:
+                        print("d", d)
+                        username = d[1]
+                        print("username", username)
+                    d = d[0]
+                    if d[:10] == "<download>":
+                        print("downloading file")
+                        # send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1]))
+                        # send_thread.daemon = True
+                        # send_thread.start()
+                        self.send_file(client_socket, addr, d[11:-1], username)
             except:
                 pass
             time.sleep(1)
