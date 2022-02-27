@@ -13,11 +13,8 @@ BUFFER_SIZE = 50000
 # TODO: timeout
 # TODO: unit tests
 # TODO: duplicate users
-# TODO: get list of files
-# TODO: sending files and messages
 
-
-class Server:
+class Server(BaseException):
     def __init__(self, host, port):
 
         self.host = host
@@ -60,21 +57,24 @@ class Server:
 
     def handle_udp(self, client_socket, username):
         while True:
-            d, addr = self.udpSocket.recvfrom(1024)
-            d = d.decode()
-            d = d.split("~")
-            if len(d) == 2:
+            try:
+                d, addr = self.udpSocket.recvfrom(1024)
+                d = d.decode()
                 print("d", d)
-                username = d[1]
-                print("username", username)
-            d = d[0]
-            if d[:10] == "<download>":
-                print("downloading file")
-                # send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1]))
-                # send_thread.daemon = True
-                # send_thread.start()
-                self.send_file(client_socket, addr, d[11:-1], username)
-
+                d = d.split("~")
+                if len(d) == 2:
+                    print("d", d)
+                    username = d[1]
+                    print("username", username)
+                d = d[0]
+                if d[:10] == "<download>":
+                    print("downloading file")
+                    # send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1]))
+                    # send_thread.daemon = True
+                    # send_thread.start()
+                    self.send_file(client_socket, addr, d[11:-1], username)
+            except:
+                pass
             time.sleep(1)
 
 
@@ -149,52 +149,62 @@ class Server:
         expectedData = []
         for i in range(size):
             expectedData.append(i)
-        while count < size and count < window_size:
-            self.udpSocket.sendto(data[count], addr)
-            # time.sleep(0.1)
-            print("sent packet #", count)
-            count += 1
-        flag = True
-        # TODO: saparte thread for receiving acks
-        while len(expectedData) > 0 and flag:
-            ack = self.udpSocket.recvfrom(32)[0].decode()
-            if ack:
-                if ack == "end":
-                    flag = False
-            if ack:
-                print(ack)
-                if ack[:3] == "ACK":
-                    # print("ack in", ack[3])
-                    if int(ack[3:]) == size / 2:
-                        print("half done, wait for proceeding")
-                        b = True
-                        while b:
-                            proc = self.udpSocket.recvfrom(32)[0].decode()
-                            if proc == "<proceed>":
-                                print("proceeding")
-                                self.dict_of_sockets[user].send("<proceeding>".encode())
-                                for i in range(window_size):
-                                    self.udpSocket.sendto(data[count], addr)
-                                    count += 1
-                                    print("sent packet #", count)
-                                b = False
-                    if int(ack[3:] == str(expectedData[0])):
-                        expectedData.remove(int(ack[3:]))
-                        if count < size:
-                            self.udpSocket.sendto(data[count], addr)
-                            print("sent packet #", count)
-                            count += 1
-                    else:
-                        if len(expectedData) > 1:
-                            self.udpSocket.sendto(data[expectedData[0]], addr)
-                            self.udpSocket.sendto(data[expectedData[1]], addr)
+        self.udpSocket.settimeout(0.2)
+        try:
+            while count < size and count < window_size:
+                self.udpSocket.sendto(data[count], addr)
+                # time.sleep(0.1)
+                print("sent packet #", count)
+                count += 1
+            flag = True
+            # TODO: saparte thread for receiving acks
+            while len(expectedData) > 0 and flag:
+                ack = self.udpSocket.recvfrom(32)[0].decode()
+                if ack:
+                    if ack == "end":
+                        flag = False
+                if ack:
+                    print(ack)
+                    if ack[:3] == "ACK":
+                        # print("ack in", ack[3])
+                        if int(ack[3:]) == size / 2:
+                            print("half done, wait for proceeding")
+                            b = True
+                            while b:
+                                try:
+                                    proc = self.udpSocket.recvfrom(32)[0].decode()
+                                    print(proc, "wait for proceeding")
+                                    if proc == "<proceed>":
+                                        print("proceeding")
+                                        self.dict_of_sockets[user].send("<proceeding>".encode())
+                                        for i in range(window_size):
+                                            self.udpSocket.sendto(data[count], addr)
+                                            count += 1
+                                            print("sent packet #", count)
+                                        b = False
+                                except Exception as e:
+                                    pass
+                        if int(ack[3:] == str(expectedData[0])):
                             expectedData.remove(int(ack[3:]))
-                            # print("Sepical sent", str(data[expectedData[0]]))
-                            print("Sepical sent #", int(expectedData[0]))
-                if ack[:4] == "NACK":
-                    self.udpSocket.sendto(data[int(ack[4:])], addr)
-                # print(expectedData)
-        print(filename + " sent")
+                            if count < size:
+                                self.udpSocket.sendto(data[count], addr)
+                                print("sent packet #", count)
+                                count += 1
+                        else:
+                            if len(expectedData) > 1:
+                                self.udpSocket.sendto(data[expectedData[0]], addr)
+                                self.udpSocket.sendto(data[expectedData[1]], addr)
+                                expectedData.remove(int(ack[3:]))
+                                # print("Sepical sent", str(data[expectedData[0]]))
+                                print("Sepical sent #", int(expectedData[0]))
+                    if ack[:4] == "NACK":
+                        self.udpSocket.sendto(data[int(ack[4:])], addr)
+                    # print(expectedData)
+            print(filename + " sent")
+        except Exception as e:
+            print("timeout")
+            #print(e)
+            self.udpSocket.sendto(data[expectedData[0]], addr)
 
     def get_list_of_files(self):
         mypath = "files"
