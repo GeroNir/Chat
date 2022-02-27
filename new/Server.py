@@ -8,10 +8,9 @@ HOST = "127.0.0.1"
 PORT = 5002
 BUFFER_SIZE = 50000
 
-
 # TODO: flow control
 # TODO: unit tests
-# TODO: duplicate users
+# TODO: Sending duplicate files
 
 class Server:
     def __init__(self, host, port):
@@ -60,7 +59,6 @@ class Server:
                 udp_thread.daemon = True
                 udp_thread.start()
 
-
     def handle_udp(self, client_socket, username):
         while True:
             try:
@@ -79,10 +77,10 @@ class Server:
                     d = d[0]
                     if d[:10] == "<download>":
                         print("downloading file")
-                        # send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1]))
-                        # send_thread.daemon = True
-                        # send_thread.start()
-                        self.send_file(client_socket, addr, d[11:-1], username)
+                        send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1], username))
+                        send_thread.daemon = True
+                        send_thread.start()
+                        #self.send_file(client_socket, addr, d[11:-1], username)
             except:
                 pass
             time.sleep(1)

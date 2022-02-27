@@ -42,8 +42,6 @@ class Client:
         t.daemon = True
         t.start()
 
-        # TODO: duplicate username check
-
     def send_message(self):
 
         while True:
