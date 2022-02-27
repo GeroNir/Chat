@@ -41,41 +41,42 @@ class Client:
 
         while True:
             # input message we want to send to the server
-            command = input()
-            if command == "<get_users>" or command == "<disconnect>" or command == "<get_list_file>":
+            command = input("Enter command: ")
+            if command == "<get_users>" or command == "<disconnect>" or command == "<get_files>" or command == "<proceed>" or command[:10] == "<download>":
                 self.sock.send(command.encode())
                 if command == "<disconnect>":
                     exit()
-            if command == "<proceed>":
-                print("[*] proceeding....")
-                self.udpSocket.sendto(command.encode(), (HOST, PORT))
-            else:
+
+                if command == "<proceed>":
+                    print("[*] proceeding....")
+                    self.udpSocket.sendto(command.encode(), (HOST, PORT))
+
                 if command[:10] == "<download>":
                     print("[*] Sending file...")
                     cmd = command + "~" + self.username
                     self.udpSocket.sendto(cmd.encode(), (HOST, PORT))
-                else:
-                    message = input()
-                    date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    message = f"{self.client_color}[{date_now}] {self.username}{saprate}{message}{Fore.RESET}{saprate}{command}"
-                    self.sock.send(message.encode())
+            else:
+                message = input("Enter message: ")
+                date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                message = f"{self.client_color}[{date_now}] {self.username}{saprate}{message}{Fore.RESET}{saprate}{command}"
+                self.sock.send(message.encode())
 
     def listen_for_messages(self):
         while True:
-            # try:
-            message = self.sock.recv(50000).decode()
-            if message == "Sending file...":
-                # t = threading.Thread(target=self.get_file())
-                # t.daemon = True
-                # t.start()
-                # time.sleep(1)
-                self.get_file()
-            else:
+            try:
+                message = self.sock.recv(50000).decode()
                 if message:
-                    print(message)
-        # except Exception as e:
-        #     print(e)
-        #     break
+                    if message == "Sending file...":
+                        # t = threading.Thread(target=self.get_file())
+                        # t.daemon = True
+                        # t.start()
+                        # time.sleep(1)
+                        self.get_file()
+                    else:
+                        print(message)
+            except Exception as e:
+                print(e)
+                break
 
     def get_file(self):
         try:
@@ -137,7 +138,7 @@ class Client:
             print("end")
             self.udpSocket.sendto(("end").encode(), (HOST, PORT))
             for d in receivedData:
-                file = open("received_file.txt", "a")
+                file = open("received_file.txt", "a+")
                 file.write(d)
                 file.close()
         except Exception as e:

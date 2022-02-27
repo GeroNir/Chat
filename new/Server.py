@@ -1,6 +1,8 @@
 import threading
 import socket
 import time
+from os import listdir
+from os.path import isfile, join
 
 HOST = "127.0.0.1"
 PORT = 5002
@@ -73,29 +75,40 @@ class Server:
                 # send_thread.start()
                 self.send_file(client_socket, addr, d[11:-1], username)
 
-            time.sleep(2)
+            time.sleep(1)
 
 
     def handle_client(self, address, user):
         while True:
             try:
                 data = self.dict_of_sockets[user].recv(1024)
-                if data.decode() == "<get_users>":
-                    self.dict_of_sockets[user].send(str(self.dict_of_users).encode())
-                    break
-                if data.decode() == "<disconnect>":
-                    self.dict_of_sockets[user].send("<disconnected>".encode())
-                    print("Client disconnected: {}".format(address))
-                    self.dict_of_sockets[user].close()
-                    del self.dict_of_sockets[user]
-                    self.client_count -= 1
-                    break
+                if data:
+                    if data.decode() == "<get_users>":
+                        self.dict_of_sockets[user].send(str(self.dict_of_users).encode())
+                        data = None
+
+                    if data.decode() == "<disconnect>":
+                        self.dict_of_sockets[user].send("<disconnected>".encode())
+                        print("Client disconnected: {}".format(address))
+                        self.dict_of_sockets[user].close()
+                        del self.dict_of_sockets[user]
+                        self.client_count -= 1
+                        data = None
+                        break
+
+                    if data.decode() == "<get_files>":
+                        self.dict_of_sockets[user].send(str(self.get_list_of_files()).encode())
+                        data = None
+
+                    if data.decode()[:10] == "<download>" or data.decode() == "<proceed>":
+                        data = None
 
                 # tmp = data.decode()
                 # print(tmp)
                 # tmp = tmp[:10]
 
                 if data:
+                    print("data", data.decode())
                     dest = str(data.decode()).split(":")[4]
                     data = str(data.decode()).split(":")[0] + ":" + str(data.decode()).split(":")[1] + ":" + \
                            str(data.decode()).split(":")[2] + ":" + str(data.decode()).split(":")[3]
@@ -107,8 +120,7 @@ class Server:
                         for client in self.dict_of_sockets.keys():
                             if client == dest:
                                 self.dict_of_sockets[client].send(data.encode())
-                else:
-                    raise Exception("No data received")
+
             except Exception as e:
                 print("Client disconnected: {}".format(address))
                 self.dict_of_sockets[user].close()
@@ -184,6 +196,11 @@ class Server:
                 # print(expectedData)
         print(filename + " sent")
 
+    def get_list_of_files(self):
+        mypath = "files"
+        onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
+        return onlyfiles
+
     def check_username(self):
         available = True
         while available:
@@ -210,6 +227,7 @@ class Server:
         return checksum
 
     def split(self, path):
+        path = "files/" + path
         buffer = BUFFER_SIZE - 100
         list = []
         f = open(path, "rb")
@@ -226,5 +244,6 @@ class Server:
 
 
 if __name__ == '__main__':
+
     server = Server(HOST, PORT)
     server.accept_clients()
