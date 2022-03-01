@@ -114,7 +114,7 @@ class Client:
                     info = data[2]
                     info = info[:-1]
                     check = self.calculate_checksum(info.encode())
-                    # TODO: use deffrent thread to sending and receiving
+                    # TODO: use different thread to sending and receiving
                     if seq in expectedData:
                         print("seq #", seq)
                         receivedData.insert(seq, info)
