@@ -7,60 +7,97 @@ from new.MyServer import MyServer
 
 
 class TestMyServer(TestCase):
-    def test_MyServer(self):
-        global c1
-        time.sleep(0.2)
-        c1 = Client()
-        c1.listen_for_messages()
+    global c1
+
 
     def test_accept_clients(self):
-        self.fail()
 
-    def test_handle_udp(self):
+        HOST = "127.0.0.1"
+        PORT = 5002
+
+        s = MyServer(HOST, PORT)
+
+        self.assertEqual(s.client_count, 0)
+
+        t2 = threading.Thread(target=s.accept_clients)
+        t2.daemon = True
+        t2.start()
+
+        time.sleep(0.2)
+
+        c1 = Client('h')
+        c2 = Client('g')
+
+        time.sleep(0.2)
+
+        self.assertEqual(s.client_count, 2)
+        self.assertIsNotNone(s.dict_of_users['h'])
+        self.assertIsNotNone(s.dict_of_users['g'])
+
+    def test_handle_client(self):
+        HOST = "127.0.0.1"
+        PORT = 5002
+
+        s = MyServer(HOST, PORT)
+
+        self.assertEqual(s.client_count, 0)
+
+        t2 = threading.Thread(target=s.accept_clients)
+        t2.daemon = True
+        t2.start()
+
+        time.sleep(0.2)
+
+        c1 = Client('h')
+        c2 = Client('g')
+
+        time.sleep(0.2)
+
+        self.assertEqual(s.client_count, 2)
+        self.assertIsNotNone(s.dict_of_users['h'])
+        self.assertIsNotNone(s.dict_of_users['g'])
+
+    def test_send_file_and_handle_udp(self):
+
+        HOST = "127.0.0.1"
+        PORT = 5002
+
+        s = MyServer(HOST, PORT)
+
+        self.assertEqual(s.client_count, 0)
+
+        t2 = threading.Thread(target=s.accept_clients)
+        t2.daemon = True
+        t2.start()
+
+        time.sleep(0.2)
+
+        c1 = Client('h')
+
+        time.sleep(0.2)
+
+        t3 = threading.Thread(target=c1.send_message_prop, args=('<download><text.txt>',))
+        t3.daemon = True
+        t3.start()
+
+        time.sleep(0.2)
+
+        self.assertEqual(c1.list_of_messages[len(c1.list_of_messages) - 1], "end_of_file")
+
+    def test_get_list_of_files(self):
 
         HOST = '127.0.0.1'
         PORT = 5002
         s = MyServer(HOST, PORT)
-        s.accept_clients()
-        c1 = Client()
-        c1.listen_for_messages()
-        data = c1.sock.recv(1024).decode()
-        self.assertEqual(data, 'username accepted')
-
-
-    def test_handle_client(self):
-
-        t = threading.Thread(target=self.test_MyServer())
-        t.daemon = True
-        t.start()
-        HOST = "127.0.0.1"
-        PORT = 5002
-        s = MyServer(HOST, PORT)
-        s.accept_clients()
-        data = c1.sock.recv(1024).decode()
-        self.assertEqual(data, 'username accepted')
-
-    def test_get_host(self):
-        self.fail()
-
-    def test_get_port(self):
-        self.fail()
-
-    def test_get_dict_of_users(self):
-        self.fail()
-
-    def test_send_file(self):
-        self.fail()
-
-    def test_get_list_of_files(self):
-        self.fail()
+        self.assertEqual(['bigfile.txt', 'leave.png', 'test.txt', 'text.txt'], s.get_list_of_files())
+        self.assertEqual(4, len(s.get_list_of_files()))
 
     def test_split(self):
 
         HOST = '127.0.0.1'
-        PORT = 5000
-        path = 'files/test.txt'
+        PORT = 5002
+        file_name = 'test.txt'
         s = MyServer(HOST, PORT)
-        ans = s.split(path, 1)
-        print(ans)
-        self.assertEqual(s.split(path, 1)[0], ['a', 'b', 'c', 'd'])
+        self.assertEqual([b'0~97~a', b'1~99~c', b'2~98~b', b'3~100~d'], s.split(file_name, 1)[0])
+        self.assertEqual(4, s.split(file_name, 1)[1])
+        self.assertEqual(2, s.split(file_name, 2)[1])

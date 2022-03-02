@@ -9,10 +9,12 @@ HOST = "127.0.0.1"
 PORT = 5002
 BUFFER_SIZE = 50000
 
-# TODO: flow control
-# TODO: unit tests
-# TODO: Sending duplicate files
+# TODO: congection control
+# TODO : check packet loss
+# TODO: documentation
+# TODO: send multiple kind of files
 # TODO: file doesnt exist
+# TODO: readme
 
 class MyServer:
 
@@ -32,6 +34,11 @@ class MyServer:
         self.server_socket.listen(5)
         self.udpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udpSocket.bind((self.host, self.port))
+
+    '''
+    This function is used to get the user and save all the relevant information and starts a separate thread for tcp 
+    connection and udp connection. it also checks if the username is already taken.
+    '''
 
     def accept_clients(self):
         print("Waiting for clients...")
@@ -64,6 +71,10 @@ class MyServer:
                 udp_thread.daemon = True
                 udp_thread.start()
 
+    '''
+    This function is used to handle the udp connection.
+    '''
+
     def handle_udp(self, client_socket, username):
         while True:
             try:
@@ -94,6 +105,9 @@ class MyServer:
                 pass
             time.sleep(1)
 
+    '''
+    This function is used to handle the client requests, this function is called in a thread
+    '''
 
     def handle_client(self, address, user):
         while True:
@@ -103,22 +117,22 @@ class MyServer:
                     if data.decode() == "<get_users>":
                         self.dict_of_sockets[user].send(str(self.dict_of_users).encode())
                         data = None
-
-                    if data.decode() == "<disconnect>":
-                        self.dict_of_sockets[user].send("<disconnected>".encode())
-                        print("Client disconnected: {}".format(address))
-                        self.dict_of_sockets[user].close()
-                        del self.dict_of_sockets[user]
-                        self.client_count -= 1
-                        data = None
-                        break
-
-                    if data.decode() == "<get_files>":
-                        self.dict_of_sockets[user].send(str(self.get_list_of_files()).encode())
-                        data = None
-
-                    if data.decode()[:10] == "<download>" or data.decode() == "<proceed>":
-                        data = None
+                    if data:
+                        if data.decode() == "<disconnect>":
+                            self.dict_of_sockets[user].send("<disconnected>".encode())
+                            print("Client disconnected: {}".format(address))
+                            self.dict_of_sockets[user].close()
+                            del self.dict_of_sockets[user]
+                            self.client_count -= 1
+                            data = None
+                            break
+                    if data:
+                        if data.decode() == "<get_files>":
+                            self.dict_of_sockets[user].send(str(self.get_list_of_files()).encode())
+                            data = None
+                    if data:
+                        if data.decode()[:10] == "<download>" or data.decode() == "<proceed>":
+                            data = None
 
                 # tmp = data.decode()
                 # print(tmp)
@@ -145,19 +159,14 @@ class MyServer:
                 self.client_count -= 1
                 break
 
-    def get_host(self):
-        return self.host
-
-    def get_port(self):
-        return self.port
-
-    def get_dict_of_users(self):
-        return self.dict_of_users
+    '''
+    This function is used to send a file to the client
+    '''
 
     def send_file(self, socket, addr, filename, user, tmpUDPSock):
-        #print("enter send file")
-        #print("user: {}", user)
-        #print("socket: {}".format(socket))
+        # print("enter send file")
+        # print("user: {}", user)
+        # print("socket: {}".format(socket))
         flg2 = True
         self.dict_of_sockets[user].send("Sending file...".encode())
         window_size = 4
@@ -165,7 +174,7 @@ class MyServer:
         data, size = self.split(filename, BUFFER_SIZE - 100)
         count = 0
         thresh_hold = size
-        #print("portcounrt: ", portCounter)
+        # print("portcounrt: ", portCounter)
         tmpUDPSock.sendto(str(size).encode(), addr)
         expectedData = []
         for i in range(size):
@@ -230,34 +239,19 @@ class MyServer:
             print(filename + " sent")
         except Exception as e:
             print("timeout")
-            #print(e)
+            # print(e)
             time.sleep(0.1)
             tmpUDPSock.sendto(data[expectedData[0]], addr)
-            #tmpUDPSock.close()
+            tmpUDPSock.close()
 
     def get_list_of_files(self):
         mypath = "files"
         onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
         return onlyfiles
 
-    def check_username(self):
-        available = True
-        while available:
-            user = input("Enter username: ")
-            for name in self.dict_of_users:
-                if name == user:
-                    available = False
-                    print("this user name is not available, please try again:")
-                    break
-            if available == True:
-                return user
-            available = True
-        return None
-
     def __repr__(self):
         return "Server(host={}, port={})".format(self.host, self.port)
 
-    # <download><text.txt>
     def calculate_checksum(self, data):
         checksum = 0
         for byte in data:
