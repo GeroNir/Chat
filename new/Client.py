@@ -64,22 +64,33 @@ class Client:
         while True:
             # input message we want to send to the server
                 command = input("Enter command: ")
-                if command == "<get_users>" or command == "<disconnect>" or command == "<get_files>" or command == "<proceed>" or command[
-                                                                                                                                  :10] == "<download>":
-                    self.sock.send(command.encode())
+                if command == "<get_users>" or command == "<disconnect>" or command == "<get_files>" or command == "<proceed>" or \
+                        command[:10] == "<download>" or command == "<get_messages>":
+
+                    if command == "<get_messages>":
+                        print(self.list_of_messages)
+
                     if command == "<disconnect>":
+                        self.sock.send(command.encode())
+                        time.sleep(0.2)
                         self.sock.close()
                         self.udpSocket.close()
                         exit()
 
                     if command == "<proceed>":
+                        self.sock.send(command.encode())
                         print("[*] proceeding..")
                         self.udpSocket.sendto(command.encode(), self.currAddr)
 
                     if command[:10] == "<download>":
+                        #self.sock.send(command.encode())
                         print("[*] Sending file...")
                         cmd = command + "~" + self.username
                         self.udpSocket.sendto(cmd.encode(), (HOST, PORT))
+
+                    if command == "<get_users>" or command == "<get_files>":
+                        self.sock.send(command.encode())
+
                 else:
                     message = input("Enter message: ")
                     date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -96,10 +107,6 @@ class Client:
                 message = self.sock.recv(BUFFER_SIZE).decode()
                 if message:
                     if message == "Sending file...":
-                        # t = threading.Thread(target=self.get_file())
-                        # t.daemon = True
-                        # t.start()
-                        # time.sleep(1)
                         self.get_file()
                     else:
                         self.list_of_messages.append(message)
