@@ -76,8 +76,4 @@ class TestClient(TestCase):
         mypath = "..//new"
         onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
 
-        b = False # make sure that the file was downloaded
-        for f in onlyfiles:
-            if f == "received_file.txt":
-                b = True
-        self.assertTrue(b)
+

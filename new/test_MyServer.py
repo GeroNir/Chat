@@ -89,8 +89,8 @@ class TestMyServer(TestCase):
         HOST = '127.0.0.1'
         PORT = 5002
         s = MyServer(HOST, PORT)
-        self.assertEqual(['bigfile.txt', 'leave.png', 'test.txt', 'text.txt'], s.get_list_of_files())
-        self.assertEqual(4, len(s.get_list_of_files()))
+        self.assertEqual(['bigfile.txt', 'test.txt', 'text.txt'], s.get_list_of_files())
+        self.assertEqual(3, len(s.get_list_of_files()))
 
     def test_split(self):
 

@@ -8,6 +8,8 @@ import threading
 HOST = "127.0.0.1"
 PORT = 5002
 BUFFER_SIZE = 50000
+global c
+c = 0
 init()
 
 # set the available colors
@@ -44,7 +46,6 @@ class Client:
             self.sock.send(self.username.encode())
             self.currAddr = None
             recv = self.sock.recv(BUFFER_SIZE).decode()
-            # print(recv)
             while recv == "username already taken":
                 print("username already taken")
                 self.username = input("Please choose another username: ")
@@ -83,7 +84,6 @@ class Client:
                         self.udpSocket.sendto(command.encode(), self.currAddr)
 
                     if command[:10] == "<download>":
-                        #self.sock.send(command.encode())
                         print("[*] Sending file...")
                         cmd = command + "~" + self.username
                         self.udpSocket.sendto(cmd.encode(), (HOST, PORT))
@@ -150,24 +150,6 @@ class Client:
                     cmd = None
                     msg = None
 
-    # def listen_for_messages(self):
-    #     while True:
-    #         try:
-    #             message = self.sock.recv(BUFFER_SIZE).decode()
-    #             if message:
-    #                 if message == "Sending file...":
-    #                     # t = threading.Thread(target=self.get_file())
-    #                     # t.daemon = True
-    #                     # t.start()
-    #                     # time.sleep(1)
-    #                     self.get_file()
-    #                 else:
-    #                     self.list_of_messages.append(message)
-    #                     print(message)
-    #         except Exception as e:
-    #             print(e)
-    #             break
-
     '''
     This function is used to get the file from the server, it sends ack for each packet.
     In the end it saves the file, and sends end to the server.
@@ -181,7 +163,6 @@ class Client:
                 if len(size.decode().split("~")) == 1:
                     b = False
             self.currAddr = addr
-            print(f"[*] File size: {size}")
             size = int(size)
             expectedData = []
             receivedData = []
@@ -190,24 +171,16 @@ class Client:
             print("len: ", size)
             for i in range(size):
                 expectedData.append(i)
-            # print("expectedData: ", expectedData)
             while len(expectedData) > 0:
                 data = self.udpSocket.recvfrom(50000)[0]
                 if data:
-                    # print("data", data)
-                    # data = data.decode()
-                    # print("data" + data)
                     data = str(data).split("~")
                     seq = data[0]
                     seq = seq[2:]
                     seq = int(seq)
-                    checksum = int(data[1])
                     info = data[2]
                     info = info[:-1]
-                    check = self.calculate_checksum(info.encode())
-                    # TODO: use different thread to sending and receiving
                     if seq in expectedData:
-                        # print("seq #", seq)
                         receivedData.insert(seq, info)
                         expectedData.remove(seq)
                         self.udpSocket.sendto(("ACK" + str(seq)).encode(), addr)
@@ -220,7 +193,6 @@ class Client:
                                 cmd = self.sock.recv(1024).decode()
                                 if cmd == "<proceeding>":
                                     print("[*] Proceeding...")
-
                                     b = False
                                 else:
                                     if seq in expectedData:
@@ -229,18 +201,18 @@ class Client:
                                         expectedData.remove(seq)
                                         self.udpSocket.sendto(("ACK" + str(seq)).encode(), addr)
                                         print("[*] Sending ACK...", seq)
-                        # time.sleep(0.1)
                     else:
                         self.udpSocket.sendto(("NACK" + str(expectedData[0])).encode(), addr)
                         self.udpSocket.sendto(("NACK" + str(expectedData[0])).encode(), addr)
-                        # time.sleep(0.1)
-            print("end")
             self.udpSocket.sendto(("end").encode(), addr)
+            print("[*] File received")
             self.list_of_messages.append("end_of_file")
+            global c
+            file = open("received_file" + str(c) + ".txt", "w")
             for d in receivedData:
-                file = open("received_file.txt", "a")
                 file.write(d)
             file.close()
+            c+=1
         except Exception as e:
             print(e)
 
@@ -255,5 +227,3 @@ class Client:
 if __name__ == '__main__':
     c1 = Client()
     c1.send_message()
-
-# <download><leave.png>

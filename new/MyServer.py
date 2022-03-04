@@ -10,11 +10,8 @@ PORT = 5002
 BUFFER_SIZE = 50000
 
 # TODO: congection control
-# TODO : check packet loss
-# TODO: documentation
 # TODO: send multiple kind of files
 # TODO: file doesnt exist
-# TODO: readme
 
 class MyServer:
 
@@ -45,17 +42,12 @@ class MyServer:
         while True:
             client_socket, address = self.server_socket.accept()
             data = client_socket.recv(1024)
-            print(data.decode())
             while data.decode() in self.dict_of_sockets.keys():
-                print("duplicate user")
                 client_socket.send("username already taken".encode())
                 data = client_socket.recv(1024)
-                print("hey", data.decode())
-            print("new user")
             client_socket.send("username accepted".encode())
             self.dict_of_sockets[data.decode()] = client_socket
             self.dict_of_users[data.decode()] = address
-            print(self.dict_of_sockets)
             self.client_count += 1
             if self.client_count > 5:
                 print("Max number of clients reached")
@@ -80,26 +72,17 @@ class MyServer:
             try:
                 d, addr = self.udpSocket.recvfrom(1024)
                 d = d.decode()
-                print("d", d)
                 if d == "<proceed>":
                     d = None
-                    print("None")
                 else:
                     d = d.split("~")
                     if len(d) == 2:
-                        print("d", d)
                         username = d[1]
-                        print("username", username)
                     d = d[0]
                     if d[:10] == "<download>":
-                        print("downloading file")
                         tmpUDPSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                         rnd = random.randint(50000, 60000)
                         tmpUDPSock.bind((self.host, rnd))
-                        print(tmpUDPSock)
-                        # send_thread = threading.Thread(target=self.send_file, args=(client_socket, addr, d[11:-1], username, tmpUDPSock))
-                        # send_thread.daemon = True
-                        # send_thread.start()
                         self.send_file(client_socket, addr, d[11:-1], username, tmpUDPSock)
             except:
                 pass
@@ -134,10 +117,6 @@ class MyServer:
                         if data.decode()[:10] == "<download>" or data.decode() == "<proceed>":
                             data = None
 
-                # tmp = data.decode()
-                # print(tmp)
-                # tmp = tmp[:10]
-
                 if data:
                     print("data", data.decode())
                     dest = str(data.decode()).split(":")[4]
@@ -164,17 +143,11 @@ class MyServer:
     '''
 
     def send_file(self, socket, addr, filename, user, tmpUDPSock):
-        # print("enter send file")
-        # print("user: {}", user)
-        # print("socket: {}".format(socket))
         flg2 = True
         self.dict_of_sockets[user].send("Sending file...".encode())
         window_size = 4
-        # print("addr", addr)
         data, size = self.split(filename, BUFFER_SIZE - 100)
         count = 0
-        thresh_hold = size
-        # print("portcounrt: ", portCounter)
         tmpUDPSock.sendto(str(size).encode(), addr)
         expectedData = []
         for i in range(size):
@@ -183,14 +156,11 @@ class MyServer:
         try:
             while count < size and count < window_size:
                 tmpUDPSock.sendto(data[count], addr)
-                # time.sleep(0.1)
                 print("sent packet #", count)
                 count += 1
             flag = True
 
             while len(expectedData) > 0 and flag:
-                print(window_size)
-                start = time.time()
                 ack = tmpUDPSock.recvfrom(32)[0].decode()
                 if ack:
                     if ack == "end":
@@ -198,8 +168,6 @@ class MyServer:
                 if ack:
                     print(ack)
                     if ack[:3] == "ACK":
-                        end = time.time()
-                        # print("ack in", ack[3])
                         if int(ack[3:]) == size / 2:
                             print("half done, wait for proceeding")
                             b = True
@@ -228,18 +196,14 @@ class MyServer:
                                 tmpUDPSock.sendto(data[expectedData[0]], addr)
                                 tmpUDPSock.sendto(data[expectedData[1]], addr)
                                 expectedData.remove(int(ack[3:]))
-                                # print("Sepical sent", str(data[expectedData[0]]))
                                 print("Sepical sent #", int(expectedData[0]))
                             if flg2:
-                                thresh_hold = window_size / 2
                                 flg2 = False
                     if ack[:4] == "NACK":
                         tmpUDPSock.sendto(data[int(ack[4:])], addr)
-                    # print(expectedData)
             print(filename + " sent")
         except Exception as e:
             print("timeout")
-            # print(e)
             time.sleep(0.1)
             tmpUDPSock.sendto(data[expectedData[0]], addr)
             tmpUDPSock.close()
@@ -261,20 +225,17 @@ class MyServer:
 
     def split(self, path, buffer):
         path = "files/" + path
-        #buffer = BUFFER_SIZE - 100
         list = []
         f = open(path, "rb")
         l = f.read(buffer)
         i = 0
         while l:
             l = str(i).encode() + "~".encode() + str(self.calculate_checksum(l)).encode() + "~".encode() + l
-            # print("l", l)
             list.append(l)
             l = f.read(buffer)
             i += 1
         f.close()
         return list, len(list)
-
 
 if __name__ == '__main__':
 
