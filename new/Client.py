@@ -143,23 +143,23 @@ class Client:
                     cmd = None
                     msg = None
 
-    def listen_for_messages(self):
-        while True:
-            try:
-                message = self.sock.recv(BUFFER_SIZE).decode()
-                if message:
-                    if message == "Sending file...":
-                        # t = threading.Thread(target=self.get_file())
-                        # t.daemon = True
-                        # t.start()
-                        # time.sleep(1)
-                        self.get_file()
-                    else:
-                        self.list_of_messages.append(message)
-                        print(message)
-            except Exception as e:
-                print(e)
-                break
+    # def listen_for_messages(self):
+    #     while True:
+    #         try:
+    #             message = self.sock.recv(BUFFER_SIZE).decode()
+    #             if message:
+    #                 if message == "Sending file...":
+    #                     # t = threading.Thread(target=self.get_file())
+    #                     # t.daemon = True
+    #                     # t.start()
+    #                     # time.sleep(1)
+    #                     self.get_file()
+    #                 else:
+    #                     self.list_of_messages.append(message)
+    #                     print(message)
+    #         except Exception as e:
+    #             print(e)
+    #             break
 
     '''
     This function is used to get the file from the server, it sends ack for each packet.
@@ -224,7 +224,8 @@ class Client:
                                         print("[*] Sending ACK...", seq)
                         # time.sleep(0.1)
                     else:
-                        self.udpSocket.sendto(("NACK" + str(count)).encode(), addr)
+                        self.udpSocket.sendto(("NACK" + str(expectedData[0])).encode(), addr)
+                        self.udpSocket.sendto(("NACK" + str(expectedData[0])).encode(), addr)
                         # time.sleep(0.1)
             print("end")
             self.udpSocket.sendto(("end").encode(), addr)
@@ -232,7 +233,7 @@ class Client:
             for d in receivedData:
                 file = open("received_file.txt", "a")
                 file.write(d)
-                file.close()
+            file.close()
         except Exception as e:
             print(e)
 
