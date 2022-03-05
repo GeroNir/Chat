@@ -9,10 +9,6 @@ HOST = "127.0.0.1"
 PORT = 5002
 BUFFER_SIZE = 50000
 
-# TODO: congection control
-# TODO: send multiple kind of files
-# TODO: file doesnt exist
-
 class MyServer:
 
     portCounter = 6000
